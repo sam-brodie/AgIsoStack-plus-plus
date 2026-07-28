@@ -1249,76 +1249,76 @@ namespace isobus
 		acknowledgementType = AcknowledgementType::Negative;
 
 
-			switch (parameterGroupNumber)
+		switch (parameterGroupNumber)
+		{
+			case static_cast<std::uint32_t>(CANLibParameterGroupNumber::DiagnosticMessage1):
 			{
-				case static_cast<std::uint32_t>(CANLibParameterGroupNumber::DiagnosticMessage1):
-				{
-					txFlags.set_flag(static_cast<std::uint32_t>(TransmitFlags::DM1));
-					retVal = true;
-				}
-				break;
-
-				case static_cast<std::uint32_t>(CANLibParameterGroupNumber::DiagnosticMessage2):
-				{
-					txFlags.set_flag(static_cast<std::uint32_t>(TransmitFlags::DM2));
-					retVal = true;
-				}
-				break;
-
-				case static_cast<std::uint32_t>(CANLibParameterGroupNumber::DiagnosticMessage3):
-				{
-					clear_inactive_diagnostic_trouble_codes();
-					acknowledge = true;
-					acknowledgementType = AcknowledgementType::Positive;
-					retVal = true;
-				}
-				break;
-
-				case static_cast<std::uint32_t>(CANLibParameterGroupNumber::DiagnosticMessage11):
-				{
-					clear_active_diagnostic_trouble_codes();
-					acknowledge = true;
-					acknowledgementType = AcknowledgementType::Positive;
-					retVal = true;
-				}
-				break;
-
-				case static_cast<std::uint32_t>(CANLibParameterGroupNumber::ProductIdentification):
-				{
-					pendingRequests.insert(make_pair(parameterGroupNumber, requestingControlFunction));
-					txFlags.set_flag(static_cast<std::uint32_t>(TransmitFlags::ProductIdentification));
-					retVal = true;
-				}
-				break;
-				case static_cast<std::uint32_t>(CANLibParameterGroupNumber::DiagnosticProtocolIdentification):
-				{
-					txFlags.set_flag(static_cast<std::uint32_t>(TransmitFlags::DiagnosticProtocolID));
-					retVal = true;
-				}
-				break;
-
-				case static_cast<std::uint32_t>(CANLibParameterGroupNumber::SoftwareIdentification):
-				{
-					pendingRequests.insert(make_pair(parameterGroupNumber, requestingControlFunction));
-					txFlags.set_flag(static_cast<std::uint32_t>(TransmitFlags::SoftwareIdentification));
-					retVal = true;
-				}
-				break;
-
-				case static_cast<std::uint32_t>(CANLibParameterGroupNumber::ECUIdentificationInformation):
-				{
-					pendingRequests.insert(make_pair(parameterGroupNumber, requestingControlFunction));
-					txFlags.set_flag(static_cast<std::uint32_t>(TransmitFlags::ECUIdentification));
-					retVal = true;
-				}
-				break;
-
-				default:
-				{
-					// This PGN request is not handled by the diagnostic protocol
-				}
-				break;
+				txFlags.set_flag(static_cast<std::uint32_t>(TransmitFlags::DM1));
+				retVal = true;
 			}
+			break;
+
+			case static_cast<std::uint32_t>(CANLibParameterGroupNumber::DiagnosticMessage2):
+			{
+				txFlags.set_flag(static_cast<std::uint32_t>(TransmitFlags::DM2));
+				retVal = true;
+			}
+			break;
+
+			case static_cast<std::uint32_t>(CANLibParameterGroupNumber::DiagnosticMessage3):
+			{
+				clear_inactive_diagnostic_trouble_codes();
+				acknowledge = true;
+				acknowledgementType = AcknowledgementType::Positive;
+				retVal = true;
+			}
+			break;
+
+			case static_cast<std::uint32_t>(CANLibParameterGroupNumber::DiagnosticMessage11):
+			{
+				clear_active_diagnostic_trouble_codes();
+				acknowledge = true;
+				acknowledgementType = AcknowledgementType::Positive;
+				retVal = true;
+			}
+			break;
+
+			case static_cast<std::uint32_t>(CANLibParameterGroupNumber::ProductIdentification):
+			{
+				pendingRequests.insert(make_pair(parameterGroupNumber, requestingControlFunction));
+				txFlags.set_flag(static_cast<std::uint32_t>(TransmitFlags::ProductIdentification));
+				retVal = true;
+			}
+			break;
+			case static_cast<std::uint32_t>(CANLibParameterGroupNumber::DiagnosticProtocolIdentification):
+			{
+				txFlags.set_flag(static_cast<std::uint32_t>(TransmitFlags::DiagnosticProtocolID));
+				retVal = true;
+			}
+			break;
+
+			case static_cast<std::uint32_t>(CANLibParameterGroupNumber::SoftwareIdentification):
+			{
+				pendingRequests.insert(make_pair(parameterGroupNumber, requestingControlFunction));
+				txFlags.set_flag(static_cast<std::uint32_t>(TransmitFlags::SoftwareIdentification));
+				retVal = true;
+			}
+			break;
+
+			case static_cast<std::uint32_t>(CANLibParameterGroupNumber::ECUIdentificationInformation):
+			{
+				pendingRequests.insert(make_pair(parameterGroupNumber, requestingControlFunction));
+				txFlags.set_flag(static_cast<std::uint32_t>(TransmitFlags::ECUIdentification));
+				retVal = true;
+			}
+			break;
+
+			default:
+			{
+				// This PGN request is not handled by the diagnostic protocol
+			}
+			break;
+		}
 		return retVal;
 	}
 

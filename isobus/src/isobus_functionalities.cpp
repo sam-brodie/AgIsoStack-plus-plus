@@ -320,6 +320,8 @@ namespace isobus
 		    (option < BasicTractorECUOptions::Reserved))
 		{
 			existingFunctionality->set_bit_in_option(0, static_cast<std::uint8_t>(option), optionState);
+			if(option == isobus::ControlFunctionFunctionalities::BasicTractorECUOptions::TECUNotMeetingCompleteClass1Requirements)
+				existingFunctionality->tecu_noOpts = optionState;
 		}
 	}
 
@@ -335,7 +337,7 @@ namespace isobus
 
 			if (supportedFunctionalities.end() != existingFunctionality)
 			{
-				retVal = (0 == existingFunctionality->serializedValue.at(0));
+				retVal = existingFunctionality->tecu_noOpts;
 			}
 		}
 		else
@@ -686,7 +688,18 @@ namespace isobus
 		{
 			messageData.push_back(static_cast<std::uint8_t>(functionality.functionality));
 			messageData.push_back(functionality.generation);
-			messageData.push_back(static_cast<std::uint8_t>(functionality.serializedValue.size()));
+			if(functionality.functionality == Functionalities::BasicTractorECUServer && functionality.tecu_noOpts )
+				messageData.push_back(static_cast<std::uint8_t>(1));
+			else if(functionality.functionality == Functionalities::BasicTractorECUServer)
+				{
+				if(functionality.tecu_noOpts)
+					messageData.push_back(1);
+				else
+					messageData.push_back(static_cast<std::uint8_t>(functionality.serializedValue.size()) - 1);
+				}
+
+			else
+				messageData.push_back(static_cast<std::uint8_t>(functionality.serializedValue.size()));
 
 			for (const auto &dataByte : functionality.serializedValue)
 			{
@@ -839,45 +852,100 @@ namespace isobus
 		return retVal;
 	}
 
+
 	bool ControlFunctionFunctionalities::pgn_request_handler(std::uint32_t parameterGroupNumber,
-	                                                         std::shared_ptr<ControlFunction>,
+	                                                         std::shared_ptr<ControlFunction> requestingControlFunction,
 	                                                         bool &acknowledge,
-	                                                         AcknowledgementType &,
+	                                                         AcknowledgementType &acknowledgementType,
 	                                                         void *parentPointer)
 	{
-		assert(nullptr != parentPointer);
-		auto targetInterface = static_cast<ControlFunctionFunctionalities *>(parentPointer);
 		bool retVal = false;
 
-		if (static_cast<std::uint32_t>(CANLibParameterGroupNumber::ControlFunctionFunctionalities) == parameterGroupNumber)
+		if (nullptr != parentPointer)
 		{
-			acknowledge = false;
-			targetInterface->txFlags.set_flag(static_cast<std::uint32_t>(TransmitFlags::ControlFunctionFunctionalitiesMessage));
-			retVal = true;
+			retVal = reinterpret_cast<ControlFunctionFunctionalities *>(parentPointer)->pgn_request_handler(parameterGroupNumber, requestingControlFunction, acknowledge, acknowledgementType);
 		}
 		return retVal;
 	}
 
-	void ControlFunctionFunctionalities::process_flags(std::uint32_t flag, void *parentPointer)
+	bool ControlFunctionFunctionalities::pgn_request_handler(std::uint32_t parameterGroupNumber,
+	                                                         std::shared_ptr<ControlFunction> requestingControlFunction,
+	                                                         bool &acknowledge,
+	                                                         AcknowledgementType &)
 	{
-		assert(nullptr != parentPointer);
-		auto targetInterface = static_cast<ControlFunctionFunctionalities *>(parentPointer);
-		bool transmitSuccessful = true;
+		bool retVal = false;
+		acknowledge = false;
 
-		if (static_cast<std::uint32_t>(TransmitFlags::ControlFunctionFunctionalitiesMessage) == flag)
+		switch (parameterGroupNumber)
 		{
-			std::vector<std::uint8_t> messageBuffer;
-			targetInterface->get_message_content(messageBuffer);
-			transmitSuccessful = CANNetworkManager::CANNetwork.send_can_message(static_cast<std::uint32_t>(CANLibParameterGroupNumber::ControlFunctionFunctionalities),
-			                                                                    messageBuffer.data(),
-			                                                                    messageBuffer.size(),
-			                                                                    targetInterface->myControlFunction,
-			                                                                    nullptr);
+			case static_cast<std::uint32_t>(CANLibParameterGroupNumber::ControlFunctionFunctionalities):
+			{
+				txFlags.set_flag(static_cast<std::uint32_t>(TransmitFlags::ControlFunctionFunctionalitiesMessage));
+				retVal = true;
+				pendingRequests.insert(std::make_pair(parameterGroupNumber, requestingControlFunction));
+			}
+			break;
+
+			default:
+			{
+				// This PGN request is not handled by the diagnostic protocol
+			}
+			break;
 		}
 
-		if (!transmitSuccessful)
+
+		return retVal;
+	}
+
+	bool ControlFunctionFunctionalities::send_cf_functionalities()
+	{
+		bool retVal = false;
+
+		std::vector<std::uint8_t> messageBuffer;
+		get_message_content(messageBuffer);
+
+		auto it = pendingRequests.find(static_cast<std::uint32_t>(CANLibParameterGroupNumber::ControlFunctionFunctionalities));
+		auto request = (((it != pendingRequests.end()) && (messageBuffer.size() > CAN_DATA_LENGTH)) ? it->second : nullptr);
+
+
+
+		retVal = CANNetworkManager::CANNetwork.send_can_message(static_cast<std::uint32_t>(CANLibParameterGroupNumber::ControlFunctionFunctionalities),
+																messageBuffer.data(),
+																static_cast<std::uint32_t>(messageBuffer.size()),
+																myControlFunction,
+																request);
+
+		pendingRequests.erase(static_cast<std::uint32_t>(CANLibParameterGroupNumber::ControlFunctionFunctionalities));
+
+		return retVal;
+
+	}
+
+	void ControlFunctionFunctionalities::process_flags(std::uint32_t flag, void *parentPointer)
+	{
+		if (nullptr != parentPointer)
 		{
-			targetInterface->txFlags.set_flag(flag);
+			auto *parent = reinterpret_cast<ControlFunctionFunctionalities *>(parentPointer);
+			bool transmitSuccessful = false;
+
+			// todo: doesnt need to be switch case but this matches the style from DiagnosticsProtocol
+			switch (flag)
+			{
+
+				case static_cast<std::uint32_t>(TransmitFlags::ControlFunctionFunctionalitiesMessage):
+				{
+					transmitSuccessful = parent->send_cf_functionalities();
+				}
+				break;
+
+				default:
+					break;
+			}
+
+			if (false == transmitSuccessful)
+			{
+				parent->txFlags.set_flag(flag);
+			}
 		}
 	}
 } // namespace isobus

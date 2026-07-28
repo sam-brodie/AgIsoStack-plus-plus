@@ -20,6 +20,7 @@
 
 #include <list>
 #include <vector>
+#include <map>
 
 namespace isobus
 {
@@ -374,6 +375,9 @@ namespace isobus
 		/// @brief The diagnostic protocol will call this update function, make sure to call DiagnosticProtocol::update() in your update loop
 		void update();
 
+		bool send_cf_functionalities();
+
+		std::map<std::uint32_t, std::shared_ptr<isobus::ControlFunction>> pendingRequests; ///< Keeps track of pending PGN requests
 	protected:
 		/// @brief Populates a vector with the message data needed to send PGN 0xFC8E
 		/// @param[in,out] messageData The buffer to populate with data (will be cleared before use)
@@ -410,6 +414,7 @@ namespace isobus
 			Functionalities functionality = Functionalities::MinimumControlFunction; ///< The functionality associated with this data
 			std::vector<std::uint8_t> serializedValue; ///< The raw message data value for this functionality
 			std::uint8_t generation = 1; ///< The generation of the functionality supported
+			bool tecu_noOpts = false; // is the TECU 0th bit "set". cant really be set but it is inferred based on the number of options declared
 		};
 
 		/// @brief Enumerates a set of flags representing messages to be transmitted by this interfaces
@@ -457,6 +462,12 @@ namespace isobus
 		                                bool &acknowledge,
 		                                AcknowledgementType &acknowledgeType,
 		                                void *parentPointer);
+
+		//TODO: comment
+		bool pgn_request_handler(std::uint32_t parameterGroupNumber,
+										std::shared_ptr<ControlFunction> requestingControlFunction,
+										bool &acknowledge,
+										AcknowledgementType &acknowledgeType);
 
 		/// @brief Processes set transmit flags to send messages
 		/// @param[in] flag The flag to process

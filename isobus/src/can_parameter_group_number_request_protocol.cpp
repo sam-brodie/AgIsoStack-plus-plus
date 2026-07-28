@@ -164,9 +164,16 @@ namespace isobus
 
 	void ParameterGroupNumberRequestProtocol::process_message(const CANMessage &message)
 	{
-		if (((nullptr == message.get_destination_control_function()) &&
-		     (BROADCAST_CAN_ADDRESS == message.get_identifier().get_destination_address())) ||
-		    (message.get_destination_control_function() == myControlFunction))
+		if (
+				(
+					(nullptr == message.get_destination_control_function()) && //is type 1 PGN (always broadcast)
+					(BROADCAST_CAN_ADDRESS == message.get_identifier().get_destination_address()) //is type 1 PGN (always broadcast)
+				)
+				||
+				(message.get_destination_control_function() == myControlFunction) // is type 2 and addressed to me
+				||
+				(message.is_broadcast()) // is broadcast TODO: dont know if is only for type 2?
+			)
 		{
 			switch (message.get_identifier().get_parameter_group_number())
 			{
@@ -209,14 +216,24 @@ namespace isobus
 						AcknowledgementType ackType = AcknowledgementType::Negative;
 						bool anyCallbackProcessed = false;
 
+						// Requests to the global address need to be answered to the global address (i.e. not the requester specifically)
+						// It is legitimate if the request is to the global address (not us specifically) then the target
+						// for the reply is the global address, represented in the library by nullptr
+						std::shared_ptr<ControlFunction> requestingControlFunction =
+						    (BROADCAST_CAN_ADDRESS == message.get_identifier().get_destination_address())
+						        ? nullptr
+						        : message.get_source_control_function();
+
 						std::uint32_t requestedPGN = message.get_uint24_at(0);
 
 						LOCK_GUARD(Mutex, pgnRequestMutex);
 						for (const auto &pgnRequestCallback : pgnRequestCallbacks)
 						{
+
+
 							if (((pgnRequestCallback.pgn == requestedPGN) ||
 							     (static_cast<std::uint32_t>(isobus::CANLibParameterGroupNumber::Any) == pgnRequestCallback.pgn)) &&
-							    (pgnRequestCallback.callbackFunction(requestedPGN, message.get_source_control_function(), shouldAck, ackType, pgnRequestCallback.parent)))
+							    (pgnRequestCallback.callbackFunction(requestedPGN, requestingControlFunction, shouldAck, ackType, pgnRequestCallback.parent)))
 							{
 								// If we're here, the callback was able to process the PGN request.
 								anyCallbackProcessed = true;

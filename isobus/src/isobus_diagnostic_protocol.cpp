@@ -1248,8 +1248,7 @@ namespace isobus
 		acknowledge = false;
 		acknowledgementType = AcknowledgementType::Negative;
 
-		if (nullptr != requestingControlFunction)
-		{
+
 			switch (parameterGroupNumber)
 			{
 				case static_cast<std::uint32_t>(CANLibParameterGroupNumber::DiagnosticMessage1):
@@ -1291,7 +1290,6 @@ namespace isobus
 					retVal = true;
 				}
 				break;
-
 				case static_cast<std::uint32_t>(CANLibParameterGroupNumber::DiagnosticProtocolIdentification):
 				{
 					txFlags.set_flag(static_cast<std::uint32_t>(TransmitFlags::DiagnosticProtocolID));
@@ -1321,7 +1319,6 @@ namespace isobus
 				}
 				break;
 			}
-		}
 		return retVal;
 	}
 

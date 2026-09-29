@@ -61,6 +61,8 @@ namespace isobus
 	                                          bool successful,
 	                                          void *parentPointer);
 	/// @brief A callback for handling a PGN request
+	/// @details requestingControlFunction is the response destination: nullptr for a global request,
+	/// or the requesting control function for a destination-specific request. Callbacks must accept nullptr.
 	using PGNRequestCallback = bool (*)(std::uint32_t parameterGroupNumber,
 	                                    std::shared_ptr<ControlFunction> requestingControlFunction,
 	                                    bool &acknowledge,

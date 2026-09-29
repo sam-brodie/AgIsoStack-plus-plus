@@ -1249,8 +1249,6 @@ namespace isobus
 		acknowledge = false;
 		acknowledgementType = AcknowledgementType::Negative;
 
-		if (nullptr != requestingControlFunction)
-		{
 			switch (parameterGroupNumber)
 			{
 				case static_cast<std::uint32_t>(CANLibParameterGroupNumber::DiagnosticMessage1):
@@ -1321,7 +1319,6 @@ namespace isobus
 					// This PGN request is not handled by the diagnostic protocol
 				}
 				break;
-			}
 		}
 		return retVal;
 	}

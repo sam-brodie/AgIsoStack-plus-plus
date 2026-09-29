@@ -164,6 +164,13 @@ namespace isobus
 
 	void ParameterGroupNumberRequestProtocol::process_message(const CANMessage &message)
 	{
+		// Request addressing references are given in ISO 11783-3:2014, Tables 5 and 6. Also the same should be specificed in J1939
+		// 
+		
+		// The first condition accepts global requests; the second accepts requests to this CF.
+		// A null destination CF alone is insufficient: an unknown specific address also resolves
+		// to nullptr. Check the identifier's DA as well, rather than using is_broadcast(),
+		// which also returns true for unresolved destinations. Requests to other CFs are ignored.
 		if (((nullptr == message.get_destination_control_function()) &&
 		     (BROADCAST_CAN_ADDRESS == message.get_identifier().get_destination_address())) ||
 		    (message.get_destination_control_function() == myControlFunction))
@@ -209,6 +216,13 @@ namespace isobus
 						AcknowledgementType ackType = AcknowledgementType::Negative;
 						bool anyCallbackProcessed = false;
 
+						// A request to the global address should be answered to the global address (not to the requester directly)
+						// In this library nullptr destination address is broadcast
+
+						const auto responseDestination =
+						  (BROADCAST_CAN_ADDRESS == message.get_identifier().get_destination_address()) ?
+						    nullptr : message.get_source_control_function();
+
 						std::uint32_t requestedPGN = message.get_uint24_at(0);
 
 						LOCK_GUARD(Mutex, pgnRequestMutex);
@@ -216,7 +230,7 @@ namespace isobus
 						{
 							if (((pgnRequestCallback.pgn == requestedPGN) ||
 							     (static_cast<std::uint32_t>(isobus::CANLibParameterGroupNumber::Any) == pgnRequestCallback.pgn)) &&
-							    (pgnRequestCallback.callbackFunction(requestedPGN, message.get_source_control_function(), shouldAck, ackType, pgnRequestCallback.parent)))
+							    (pgnRequestCallback.callbackFunction(requestedPGN, responseDestination, shouldAck, ackType, pgnRequestCallback.parent)))
 							{
 								// If we're here, the callback was able to process the PGN request.
 								anyCallbackProcessed = true;
@@ -224,7 +238,8 @@ namespace isobus
 								// Now we need to know if we shoulc ACK it.
 								// We should not ACK messages that send the actual PGN as a result of requesting it. This behavior is up to
 								// the application layer to do properly.
-								if (shouldAck && (nullptr != message.get_destination_control_function()))
+								// This guard permits ACK handling only for directed requests, global requests have no destination CF.
+								if (shouldAck && (nullptr != responseDestination))
 								{
 									send_acknowledgement(ackType,
 									                     requestedPGN,
@@ -235,7 +250,8 @@ namespace isobus
 							}
 						}
 
-						if ((!anyCallbackProcessed) && (nullptr != message.get_destination_control_function()))
+						// Unsupported directed requests require a NACK; unsupported global requests must not NACK
+						if ((!anyCallbackProcessed) && (nullptr != responseDestination))
 						{
 							send_acknowledgement(AcknowledgementType::Negative,
 							                     requestedPGN,
